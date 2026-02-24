@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CukiCliker de Eric</title>
+    <title>CukiCliker - Versión Final</title>
     <style>
         :root { --gold: #ffcc00; --panel: #2d2d2d; }
         body { background: radial-gradient(circle, #3e2723, #121212); color: white; font-family: sans-serif; display: flex; margin: 0; height: 100vh; overflow: hidden; }
-        #login-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; }
-        .btn-google { background: #db4437; color: white; padding: 15px 30px; border: none; border-radius: 8px; cursor: pointer; font-size: 1.2rem; font-weight: bold; box-shadow: 0 4px 15px rgba(219,68,55,0.4); }
+        #login-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; text-align: center; }
+        .btn-google { background: #db4437; color: white; padding: 15px 30px; border: none; border-radius: 8px; cursor: pointer; font-size: 1.2rem; font-weight: bold; }
         .game-container { flex: 1; display: flex; }
         .seccion-galleta { flex: 1.5; display: flex; flex-direction: column; align-items: center; justify-content: center; border-right: 2px solid #000; }
         #puntos { font-size: 4rem; color: var(--gold); margin: 0; }
@@ -17,39 +17,29 @@
         #galleta::after { content: "🍪"; }
         .seccion-derecha { width: 380px; background: var(--panel); display: flex; flex-direction: column; padding: 15px; border-left: 2px solid #000; }
         .box { background: #1a1a1a; margin-bottom: 10px; border-radius: 8px; padding: 10px; overflow-y: auto; flex: 1; }
-        .rank-item { display: flex; justify-content: space-between; padding: 5px; border-bottom: 1px solid #333; font-size: 0.9rem; }
-        .rank-item.top { color: var(--gold); font-weight: bold; }
+        .rank-item { display: flex; justify-content: space-between; padding: 5px; border-bottom: 1px solid #333; }
         #chat-input { width: 90%; padding: 10px; border-radius: 5px; border: none; background: #444; color: white; margin-top: 5px; }
-        .user-tag { position: absolute; top: 10px; left: 10px; display: flex; align-items: center; gap: 8px; font-weight: bold; background: rgba(0,0,0,0.5); padding: 5px 15px; border-radius: 20px; }
-        .user-tag img { width: 25px; border-radius: 50%; }
     </style>
 </head>
 <body>
 
     <div id="login-overlay">
         <h1>🍪 CukiCliker PRO</h1>
+        <p>Si la ventana se cierra, asegúrate de haber añadido <br><b>petatxu.github.io</b> en Dominios Autorizados de Firebase.</p>
         <button class="btn-google" id="btn-login">Entrar con Google</button>
-    </div>
-
-    <div class="user-tag" id="ui-user" style="display:none;">
-        <img id="user-pic" src="">
-        <span id="user-display">Jugador</span>
     </div>
 
     <div class="game-container">
         <div class="seccion-galleta">
             <h1 id="puntos">0</h1>
             <div id="galleta"></div>
-            <p>GPS: <span id="gps">0.0</span></p>
         </div>
-
         <div class="seccion-derecha">
-            <h3 style="color:var(--gold); margin:0;">🏆 TOP MUNDIAL</h3>
-            <div class="box" id="ranking-list">Cargando ranking...</div>
-            
-            <h3 style="color:var(--gold); margin:0;">💬 CHAT GLOBAL</h3>
+            <h3 style="color:var(--gold); margin:0;">🏆 RANKING</h3>
+            <div class="box" id="ranking-list">Cargando...</div>
+            <h3 style="color:var(--gold); margin:0;">💬 CHAT</h3>
             <div class="box" id="chat-msgs"></div>
-            <input type="text" id="chat-input" placeholder="Escribe algo y pulsa Enter...">
+            <input type="text" id="chat-input" placeholder="Escribe aquí...">
         </div>
     </div>
 
@@ -75,31 +65,31 @@
         let puntos = 0;
         let userActual = null;
 
-        document.getElementById('btn-login').onclick = () => signInWithPopup(auth, provider);
+        document.getElementById('btn-login').onclick = () => {
+            signInWithPopup(auth, provider).catch(err => {
+                alert("Error de Google: " + err.message + "\n\nRevisa los Dominios Autorizados en Firebase.");
+            });
+        };
 
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 userActual = user;
                 document.getElementById('login-overlay').style.display = 'none';
-                document.getElementById('ui-user').style.display = 'flex';
-                document.getElementById('user-pic').src = user.photoURL;
-                document.getElementById('user-display').innerText = user.displayName.split(' ')[0];
-                
                 const docSnap = await getDoc(doc(db, "jugadores", user.uid));
                 if (docSnap.exists()) puntos = docSnap.data().puntos || 0;
                 
-                // Cargar Ranking
+                // Ranking
                 onSnapshot(query(collection(db, "jugadores"), orderBy("puntos", "desc"), limit(10)), (snap) => {
                     const rList = document.getElementById('ranking-list');
                     rList.innerHTML = '';
                     snap.forEach((doc, i) => {
                         const d = doc.data();
-                        rList.innerHTML += `<div class="rank-item ${i<3?'top':''}"><span>#${i+1} ${d.nombre}</span><b>${Math.floor(d.puntos)}</b></div>`;
+                        rList.innerHTML += `<div class="rank-item"><span>#${i+1} ${d.nombre}</span><b>${Math.floor(d.puntos)}</b></div>`;
                     });
                 });
 
-                // Cargar Chat
-                onSnapshot(query(collection(db, "chat"), orderBy("fecha", "asc"), limit(20)), (snap) => {
+                // Chat
+                onSnapshot(query(collection(db, "chat"), orderBy("fecha", "asc"), limit(15)), (snap) => {
                     const box = document.getElementById('chat-msgs');
                     box.innerHTML = '';
                     snap.forEach(doc => {
@@ -111,17 +101,27 @@
             }
         });
 
-        document.getElementById('galleta').onclick = () => { puntos++; document.getElementById('puntos').innerText = Math.floor(puntos).toLocaleString(); };
+        document.getElementById('galleta').onclick = () => { 
+            puntos++; 
+            document.getElementById('puntos').innerText = Math.floor(puntos).toLocaleString(); 
+        };
 
         document.getElementById('chat-input').onkeydown = async (e) => {
             if(e.key === 'Enter' && e.target.value.trim() !== "" && userActual) {
-                await addDoc(collection(db, "chat"), { nombre: userActual.displayName.split(' ')[0], texto: e.target.value, fecha: serverTimestamp() });
+                await addDoc(collection(db, "chat"), { 
+                    nombre: userActual.displayName.split(' ')[0], 
+                    texto: e.target.value, 
+                    fecha: serverTimestamp() 
+                });
                 e.target.value = "";
             }
         };
 
         setInterval(() => {
-            if (userActual) setDoc(doc(db, "jugadores", userActual.uid), { puntos, nombre: userActual.displayName.split(' ')[0] }, { merge: true });
+            if (userActual) setDoc(doc(db, "jugadores", userActual.uid), { 
+                puntos, 
+                nombre: userActual.displayName.split(' ')[0] 
+            }, { merge: true });
         }, 10000);
     </script>
 </body>
